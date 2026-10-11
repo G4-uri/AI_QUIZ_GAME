@@ -9,37 +9,50 @@ st.set_page_config(
     layout="centered"
 )
 
-TOTAL_QUESTIONS = 10
-QUIZ_TIME_SECONDS = 10 * 60
+TOTAL_QUESTIONS = len(QUESTIONS)
+QUIZ_TIME_SECONDS = 30 * 60
 
 if "started" not in st.session_state:
     st.session_state.started = False
+
 if "questions" not in st.session_state:
     st.session_state.questions = []
+
 if "current" not in st.session_state:
     st.session_state.current = 0
+
 if "score" not in st.session_state:
     st.session_state.score = 0
+
 if "selected" not in st.session_state:
     st.session_state.selected = None
+
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
+
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
+
 if "hint_used" not in st.session_state:
     st.session_state.hint_used = False
+
 if "fifty_fifty_used" not in st.session_state:
     st.session_state.fifty_fifty_used = False
+
 if "hidden_options" not in st.session_state:
     st.session_state.hidden_options = []
+
 if "history" not in st.session_state:
     st.session_state.history = []
 
+
 def start_quiz():
     st.session_state.started = True
-    st.session_state.questions = random.sample(
-        QUESTIONS, TOTAL_QUESTIONS
-    )
+
+    # All 50 questions are used once, in random order.
+    st.session_state.questions = QUESTIONS.copy()
+    random.shuffle(st.session_state.questions)
+
     st.session_state.current = 0
     st.session_state.score = 0
     st.session_state.selected = None
@@ -50,18 +63,29 @@ def start_quiz():
     st.session_state.hidden_options = []
     st.session_state.history = []
 
+
 def check_answer():
     q = st.session_state.questions[st.session_state.current]
+
     correct = st.session_state.selected == q["answer"]
+
     if correct:
         st.session_state.score += 1
-    st.session_state.history.append({
-        "question": q["question"],
-        "selected": st.session_state.selected,
-        "correct_answer": q["answer"],
-        "is_correct": correct
-    })
+
+    st.session_state.history.append(
+        {
+            "question": q["question"],
+            "selected": st.session_state.selected,
+            "selected_text": q["options"][st.session_state.selected],
+            "correct_answer": q["answer"],
+            "correct_text": q["options"][q["answer"]],
+            "is_correct": correct,
+            "explanation": q["explanation"],
+        }
+    )
+
     st.session_state.submitted = True
+
 
 def next_question():
     st.session_state.current += 1
@@ -74,19 +98,21 @@ def next_question():
     if st.session_state.current >= TOTAL_QUESTIONS:
         st.session_state.started = False
 
+
 st.title("🤖 Interactive AI Quiz Game")
 st.subheader("Artificial Intelligence — Units I & II")
 st.caption(
-    "Covers AI foundations, agents, environments, search, heuristics, "
-    "CSP, and means-end analysis."
+    "A 50-question interactive quiz on AI foundations, agents, "
+    "environments, search techniques, CSP, and means-end analysis."
 )
 
 if not st.session_state.started:
+
     if st.session_state.current >= TOTAL_QUESTIONS and st.session_state.history:
         score = st.session_state.score
         percentage = round((score / TOTAL_QUESTIONS) * 100, 2)
 
-        st.success("Quiz completed!")
+        st.success("🎉 Quiz completed successfully!")
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Score", f"{score}/{TOTAL_QUESTIONS}")
@@ -100,104 +126,142 @@ if not st.session_state.started:
 
         if percentage >= 80:
             st.balloons()
-            st.info("Excellent! You have a strong understanding of AI concepts.")
+            st.success("Excellent performance! You have a strong understanding of AI concepts.")
         elif percentage >= 50:
-            st.info("Good work! Revise the topics you missed.")
+            st.info("Good attempt. Review the incorrect answers to improve further.")
         else:
-            st.warning("Please revise Units I and II and try again.")
+            st.warning("Please revise Units I and II, then attempt the quiz again.")
 
-        with st.expander("📋 Review your answers"):
-            for i, item in enumerate(st.session_state.history, 1):
-                status = "✅ Correct" if item["is_correct"] else "❌ Incorrect"
-                st.markdown(
-                    f"**Q{i}. {item['question']}**  \n"
-                    f"Your answer: **{item['selected']}**  \n"
-                    f"Correct answer: **{item['correct_answer']}**  \n"
-                    f"{status}"
-                )
+        with st.expander("📋 Review all answers"):
+            for i, item in enumerate(st.session_state.history, start=1):
+                if item["is_correct"]:
+                    status = "✅ Correct"
+                else:
+                    status = "❌ Incorrect"
 
-    st.markdown("### Game Rules")
-    st.markdown(
-        f"""
-- Each student receives **{TOTAL_QUESTIONS} randomly selected questions** from a bank of **50 questions**.
-- Total time: **10 minutes**.
-- Each correct answer gives **1 mark**.
-- Use **Hint** for an explanation-based clue.
-- Use **50:50** once per question to remove two incorrect options.
-- Immediate feedback is shown after every answer.
-- A progress bar and final score are displayed.
-        """
-    )
+                st.markdown(f"### Question {i}")
+                st.markdown(f"**{item['question']}**")
+                st.markdown(f"Your answer: **{item['selected_text']}**")
+                st.markdown(f"Correct answer: **{item['correct_text']}**")
+                st.markdown(f"Result: {status}")
+                st.info(f"Explanation: {item['explanation']}")
+                st.divider()
 
-    if st.button("🚀 Start Quiz", use_container_width=True):
-        start_quiz()
-        st.rerun()
+        if st.button("🔄 Start New Quiz Attempt", use_container_width=True):
+            st.session_state.current = 0
+            st.session_state.history = []
+            start_quiz()
+            st.rerun()
+
+    else:
+        st.markdown("### Game Rules")
+        st.markdown(
+            f"""
+- The quiz contains **{TOTAL_QUESTIONS} unique questions** from Units I and II.
+- All questions are displayed once, but the order is randomized in every attempt.
+- Total time allowed: **30 minutes**.
+- Each correct answer carries **1 mark**.
+- Use the **Hint** button to view a concept clue.
+- Use **50:50** to remove two incorrect options.
+- Immediate feedback is provided after every answer.
+- The progress bar indicates quiz completion.
+- Your final score, percentage, result, and detailed answer review appear after Question 50.
+            """
+        )
+
+        if st.button("🚀 Start 50-Question Quiz", use_container_width=True):
+            start_quiz()
+            st.rerun()
 
 else:
     elapsed = time.time() - st.session_state.start_time
     remaining = max(0, int(QUIZ_TIME_SECONDS - elapsed))
+
     minutes = remaining // 60
     seconds = remaining % 60
 
     if remaining == 0:
-        st.error("⏰ Time is over! Quiz submitted automatically.")
+        st.error("⏰ Time is over. Your quiz has been submitted.")
         st.session_state.started = False
+        st.session_state.current = TOTAL_QUESTIONS
         st.rerun()
-
-    st.info(f"⏳ Time remaining: **{minutes:02d}:{seconds:02d}**")
 
     q = st.session_state.questions[st.session_state.current]
     q_number = st.session_state.current + 1
 
-    st.markdown(f"### Question {q_number} of {TOTAL_QUESTIONS}")
+    st.info(f"⏳ Time Remaining: **{minutes:02d}:{seconds:02d}**")
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown(f"### Question {q_number} of {TOTAL_QUESTIONS}")
+    with col2:
+        st.metric("Score", f"{st.session_state.score}/{q_number - 1}")
+
     st.progress(q_number / TOTAL_QUESTIONS)
+
     st.caption(
-        f"Topic: {q['topic']} | Difficulty: {q['difficulty']} | Type: {q['type']}"
+        f"Topic: {q['topic']}  |  Difficulty: {q['difficulty']}  |  Question Type: {q['type']}"
     )
-    st.markdown(f"**{q['question']}**")
+
+    st.markdown(f"## {q['question']}")
 
     options = q["options"]
-    display_options = []
 
-    for index, option in enumerate(options):
-        if index in st.session_state.hidden_options:
-            continue
-        display_options.append((index, option))
+    visible_options = [
+        i for i in range(len(options))
+        if i not in st.session_state.hidden_options
+    ]
 
     selected = st.radio(
-        "Choose your answer:",
-        options=[index for index, _ in display_options],
+        "Choose one answer:",
+        options=visible_options,
         format_func=lambda index: options[index],
         index=None,
-        key=f"question_{q['id']}"
+        key=f"question_{q['id']}",
+        disabled=st.session_state.submitted
     )
-    st.session_state.selected = selected
 
-    col1, col2, col3 = st.columns(3)
+    if not st.session_state.submitted:
+        st.session_state.selected = selected
 
-    with col1:
-        if st.button("💡 Hint", disabled=st.session_state.hint_used):
+    button_col1, button_col2, button_col3 = st.columns(3)
+
+    with button_col1:
+        if st.button(
+            "💡 Hint",
+            disabled=st.session_state.hint_used or st.session_state.submitted,
+            use_container_width=True
+        ):
             st.session_state.hint_used = True
-            st.info(q["explanation"])
+            st.info(f"Hint: {q['explanation']}")
 
-    with col2:
+    with button_col2:
         if st.button(
             "50:50",
-            disabled=st.session_state.fifty_fifty_used or st.session_state.submitted
+            disabled=st.session_state.fifty_fifty_used or st.session_state.submitted,
+            use_container_width=True
         ):
-            correct = q["answer"]
-            wrong_options = [
-                i for i in range(len(options)) if i != correct
+            correct_option = q["answer"]
+
+            incorrect_options = [
+                i for i in range(len(options))
+                if i != correct_option
             ]
-            random.shuffle(wrong_options)
-            st.session_state.hidden_options = wrong_options[:2]
+
+            random.shuffle(incorrect_options)
+
+            # Hide up to two wrong answers.
+            st.session_state.hidden_options = incorrect_options[:2]
             st.session_state.fifty_fifty_used = True
             st.rerun()
 
-    with col3:
+    with button_col3:
         if st.button(
             "Submit Answer",
-            disabled=st.session_state.selected is None or st.session_state.submitted,
+            disabled=(
+                st.session_state.selected is None
+                or st.session_state.submitted
+            ),
             use_container_width=True
         ):
             check_answer()
@@ -205,16 +269,21 @@ else:
 
     if st.session_state.submitted:
         correct_index = q["answer"]
+
         if st.session_state.selected == correct_index:
-            st.success("✅ Correct!")
+            st.success("✅ Correct answer!")
         else:
-            st.error("❌ Incorrect.")
-            st.markdown(
-                f"**Correct answer:** {options[correct_index]}"
-            )
+            st.error("❌ Incorrect answer.")
+            st.markdown(f"**Correct answer:** {options[correct_index]}")
 
         st.info(f"**Explanation:** {q['explanation']}")
 
-        if st.button("Next Question ➡️", use_container_width=True):
+        button_text = (
+            "🏁 Finish Quiz"
+            if q_number == TOTAL_QUESTIONS
+            else "Next Question ➡️"
+        )
+
+        if st.button(button_text, use_container_width=True):
             next_question()
             st.rerun()
